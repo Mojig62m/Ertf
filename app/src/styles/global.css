@@ -1,0 +1,65 @@
+:root {
+  font-family: 'Vazirmatn', Tahoma, 'Segoe UI', sans-serif;
+  color: #1c1c20;
+}
+body { margin: 0; background: #f7f7f8; }
+a { color: inherit; }
+header.site {
+  display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem;
+  background: #ffffff; border-bottom: 1px solid #e5e5e7;
+}
+header.site .brand { font-weight: 700; font-size: 1.2rem; }
+header.site nav { display: flex; gap: 1rem; }
+main.container { max-width: 1080px; margin: 0 auto; padding: 1rem; }
+.site-footer { text-align: center; color: #8a8a92; padding: 1.5rem 1rem 2rem; font-size: 0.85rem; }
+.hero { background: #ffffff; border: 1px solid #e5e5e7; border-radius: 10px; padding: 1.5rem; margin-bottom: 1.5rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+.card {
+  background: #ffffff; border: 1px solid #e5e5e7; border-radius: 10px; padding: 0.75rem;
+  display: flex; flex-direction: column; gap: 0.4rem; text-decoration: none;
+}
+.card img { width: 100%; aspect-ratio: 1 / 1; object-fit: contain; }
+.price { font-weight: 700; }
+.price-old { text-decoration: line-through; color: #9a9aa0; font-size: 0.85rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.75rem 0 1.25rem; }
+.chip {
+  background: #ffffff; border: 1px solid #e5e5e7; border-radius: 999px; padding: 0.25rem 0.85rem;
+  text-decoration: none; font-size: 0.9rem;
+}
+.chip.active { background: #1f6f43; border-color: #1f6f43; color: #ffffff; }
+.catalog-layout { display: grid; grid-template-columns: 280px 1fr; gap: 1rem; align-items: start; }
+@media (max-width: 760px) { .catalog-layout { grid-template-columns: 1fr; } }
+.filter-form {
+  background: #ffffff; border: 1px solid #e5e5e7; border-radius: 10px; padding: 1rem;
+  display: flex; flex-direction: column; gap: 0.85rem;
+}
+.filter-form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; }
+.filter-form fieldset { border: 1px solid #e5e5e7; border-radius: 8px; padding: 0.5rem 0.75rem; }
+.filter-form legend { font-size: 0.85rem; font-weight: 600; padding: 0 0.35rem; }
+.filter-form fieldset label { flex-direction: row; align-items: center; gap: 0.4rem; }
+.filter-form select, .filter-form input { padding: 0.35rem 0.5rem; border: 1px solid #d7d7db; border-radius: 6px; }
+.btn {
+  display: inline-block; background: #1f6f43; color: #ffffff; border: none; border-radius: 8px;
+  padding: 0.55rem 1.1rem; font-size: 0.95rem; cursor: pointer; text-decoration: none; text-align: center;
+}
+.btn.danger { background: #b3261e; }
+.sort-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.5rem; font-size: 0.9rem; }
+.sort-row a { text-decoration: none; }
+.sort-row a.active { font-weight: 700; color: #1f6f43; }
+.pagination { display: flex; gap: 1rem; margin-top: 1rem; align-items: center; }
+.product-page { display: grid; grid-template-columns: 320px 1fr; gap: 1.5rem; }
+@media (max-width: 760px) { .product-page { grid-template-columns: 1fr; } }
+.product-page img { width: 100%; background: #ffffff; border: 1px solid #e5e5e7; border-radius: 10px; }
+table.simple { width: 100%; border-collapse: collapse; background: #ffffff; }
+table.simple th, table.simple td { border: 1px solid #e5e5e7; padding: 0.5rem 0.75rem; text-align: right; }
+.badge { background: #eef3ff; color: #3050a0; border-radius: 999px; padding: 0.05rem 0.5rem; font-size: 0.75rem; }
+.note { color: #8a8a92; font-size: 0.85rem; }
+.add-to-cart { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.add-to-cart input { width: 4.5rem; padding: 0.35rem 0.5rem; border: 1px solid #d7d7db; border-radius: 6px; }
+.cart-link { text-decoration: none; margin-inline-start: auto; }
+.qty-controls { display: flex; align-items: center; gap: 0.5rem; }
+.qty-controls button { border: 1px solid #d7d7db; background: #ffffff; border-radius: 6px; padding: 0.15rem 0.6rem; cursor: pointer; }
+.checkout-form { display: flex; flex-direction: column; gap: 0.85rem; max-width: 520px; background: #ffffff; border: 1px solid #e5e5e7; border-radius: 10px; padding: 1rem; }
+.checkout-form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; }
+.checkout-form input, .checkout-form textarea { padding: 0.45rem 0.55rem; border: 1px solid #d7d7db; border-radius: 6px; font: inherit; }
+.form-error { color: #b3261e; font-size: 0.9rem; }

@@ -1,0 +1,107 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { listCategories, listProducts, paramsToQuery } from '../lib/catalog';
+import { formatRials } from '../lib/format';
+
+const categories = await listCategories();
+const query = paramsToQuery(Astro.url.searchParams);
+const result = await listProducts(query);
+const activeCategorySlug = query.category;
+const activeBrand = query.brand;
+const activeMin = query.min;
+const activeMax = query.max;
+const activeAttrs = query.attrs;
+const facets = result.facets as {
+  type: string;
+  brands?: { value: string; count: number }[];
+  priceRange?: { min: number; max: number } | null;
+  attributes?: { slug: string; name: string; unit: string | null; values: { slug: string; label: string; count: number }[] }[];
+} | null;
+const sort = query.sort ?? 'newest';
+const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
+const page = result.page;
+
+function withParam(name: string, value: string): string {
+  const sp = new URLSearchParams(Astro.url.searchParams);
+  sp.set(name, value);
+  const qs = sp.toString();
+  return '/catalog' + (qs ? '?' + qs : '');
+}
+---
+<BaseLayout title="کاتالوگ — ارتِف">
+  <h1>کاتالوگ</h1>
+  <div class="chips">
+    <a class={'chip' + (activeCategorySlug === null ? ' active' : '')} href="/catalog">همه</a>
+    {categories.map((c) => (
+      <a class={'chip' + (activeCategorySlug === c.slug ? ' active' : '')} href={'/catalog?category=' + c.slug}>
+        {c.name}
+      </a>
+    ))}
+  </div>
+  <div class="catalog-layout">
+    <form class="filter-form" method="get" action="/catalog">
+      {activeCategorySlug && <input type="hidden" name="category" value={activeCategorySlug} />}
+      {sort !== 'newest' && <input type="hidden" name="sort" value={sort} />}
+      {facets && facets.type === 'category' && facets.brands && facets.brands.length > 1 && (
+        <label>
+          برند
+          <select name="brand">
+            <option value="">همه برندها</option>
+            {facets.brands.map((b) => (
+              <option value={b.value} selected={activeBrand === b.value}>{b.value} ({b.count})</option>
+            ))}
+          </select>
+        </label>
+      )}
+      <fieldset>
+        <legend>محدوده قیمت (ریال)</legend>
+        <label>از <input type="number" name="min" min="0" value={activeMin ?? ''} /></label>
+        <label>تا <input type="number" name="max" min="0" value={activeMax ?? ''} /></label>
+      </fieldset>
+      {facets && facets.type === 'category' && facets.attributes && facets.attributes.map((def) => (
+        <fieldset>
+          <legend>{def.name}{def.unit ? ' (' + def.unit + ')' : ''}</legend>
+          {def.values.map((v) => (
+            <label>
+              <input
+                type="checkbox"
+                name={'a_' + def.slug}
+                value={v.slug}
+                checked={(activeAttrs[def.slug] ?? []).includes(v.slug)}
+              />
+              {v.label} ({v.count})
+            </label>
+          ))}
+        </fieldset>
+      ))}
+      <button class="btn" type="submit">اعمال فیلترها</button>
+    </form>
+    <section>
+      <div class="sort-row">
+        <span>مرتب‌سازی:</span>
+        <a class={sort === 'newest' ? 'active' : ''} href={withParam('sort', 'newest')}>جدیدترین</a>
+        <a class={sort === 'price_asc' ? 'active' : ''} href={withParam('sort', 'price_asc')}>ارزان‌ترین</a>
+        <a class={sort === 'price_desc' ? 'active' : ''} href={withParam('sort', 'price_desc')}>گران‌ترین</a>
+      </div>
+      <p>{result.total} محصول</p>
+      <div class="grid">
+        {result.items.map((p) => (
+          <a class="card" href={'/product/' + p.slug}>
+            <img src={p.imageUrl} alt={p.name} loading="lazy" width="240" height="240" />
+            <strong>{p.name}</strong>
+            <span>{p.brand}</span>
+            {p.discountRials > 0 && <span class="price-old">{formatRials(p.priceRials)}</span>}
+            <span class="price">{formatRials(p.priceRials - p.discountRials)}</span>
+          </a>
+        ))}
+      </div>
+      {totalPages > 1 && (
+        <div class="pagination">
+          {page > 1 && <a href={withParam('page', String(page - 1))}>قبلی</a>}
+          <span>صفحه {page} از {totalPages}</span>
+          {page < totalPages && <a href={withParam('page', String(page + 1))}>بعدی</a>}
+        </div>
+      )}
+    </section>
+  </div>
+</BaseLayout>

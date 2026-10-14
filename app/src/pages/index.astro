@@ -1,9 +1,41 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { listCategories, listProducts } from '../lib/catalog';
+import { formatRials } from '../lib/format';
+
+const cats = await listCategories();
+const result = await listProducts({
+  category: null, brand: null, q: null, min: null, max: null,
+  sort: 'newest', page: 1, pageSize: 8, attrs: {},
+});
 ---
 <BaseLayout title="ارتِف — فروشگاه آنلاین">
-  <main>
-    <h1>ارتِف</h1>
-    <p>نمونه فنی مرحله دوم در حال ساخت است؛ رابط کاربری در قدم چهارم برنامه اضافه می‌شود.</p>
-  </main>
+  <section class="hero">
+    <h1>ارتِف؛ فروشگاه آنلاین شما</h1>
+    <p>
+      ارسال با پست و تیپاکس، ارسال رایگان از سقف خرید، مرجوعی ۱۴ روزه کالای فیزیکی و تحویل آنی کد فعال‌سازی محصولات دیجیتال.
+    </p>
+  </section>
+  <section>
+    <h2>دسته‌ها</h2>
+    <div class="chips">
+      {cats.map((c) => (
+        <a class="chip" href={'/catalog?category=' + c.slug}>{c.name}</a>
+      ))}
+    </div>
+  </section>
+  <section>
+    <h2>محصولات تازه</h2>
+    <div class="grid">
+      {result.items.map((p) => (
+        <a class="card" href={'/product/' + p.slug}>
+          <img src={p.imageUrl} alt={p.name} loading="lazy" width="240" height="240" />
+          <strong>{p.name}</strong>
+          <span>{p.brand}</span>
+          {p.discountRials > 0 && <span class="price-old">{formatRials(p.priceRials)}</span>}
+          <span class="price">{formatRials(p.priceRials - p.discountRials)}</span>
+        </a>
+      ))}
+    </div>
+  </section>
 </BaseLayout>

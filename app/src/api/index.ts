@@ -1,24 +1,14 @@
 import { randomBytes } from 'node:crypto';
-import { and, asc, desc, eq, exists, gte, ilike, inArray, lte, or, type SQL } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { db } from '../db/client';
 import * as t from '../db/schema';
-import { DEFAULT_PAGE_SIZE } from '../lib/config';
 import { effectivePrice, lineTotal, shippingFor, subtotalOf } from '../lib/money';
+import { listCategories, paramsToQuery, listProducts, productBySlug } from '../lib/catalog';
 
 export const api = new Hono().basePath('/api');
 
-type CategoryRow = typeof t.categories.$inferSelect;
-type FacetValue = { slug: string; label: string; count: number };
-type FacetDef = { slug: string; name: string; unit: string | null; values: FacetValue[] };
-
 class OrderError extends Error {}
-
-function toInt(value: string | null): number | null {
-  if (value === null || value.trim() === '') return null;
-  const n = Number(value);
-  return Number.isSafeInteger(n) && n >= 0 ? n : null;
-}
 
 function generateLicenseKey(): string {
   const hex = randomBytes(6).toString('hex').toUpperCase();
@@ -35,203 +25,17 @@ function isPositiveInt(value: unknown): value is number {
 
 api.get('/health', (c) => c.json({ ok: true }));
 
-api.get('/categories', async (c) => {
-  const items = await db
-    .select({ id: t.categories.id, slug: t.categories.slug, name: t.categories.name })
-    .from(t.categories)
-    .orderBy(asc(t.categories.sortOrder));
-  return c.json({ items });
-});
-
-async function buildFacets(category: CategoryRow | null) {
-  if (category) {
-    const catProducts = await db
-      .select({ id: t.products.id, brand: t.products.brand, price: t.products.priceRials })
-      .from(t.products)
-      .where(eq(t.products.categoryId, category.id));
-    const brandCounts = new Map<string, number>();
-    let priceMin = Number.MAX_SAFE_INTEGER;
-    let priceMax = 0;
-    for (const p of catProducts) {
-      brandCounts.set(p.brand, (brandCounts.get(p.brand) ?? 0) + 1);
-      if (p.price < priceMin) priceMin = p.price;
-      if (p.price > priceMax) priceMax = p.price;
-    }
-    // ساده‌سازی نمونه: شمارش وجه‌ها فقط در محدوده دسته، بدون اعمال سایر فیلترها
-    const attrRows = await db
-      .select({
-        defSlug: t.categoryAttributeDefs.slug,
-        defName: t.categoryAttributeDefs.name,
-        defUnit: t.categoryAttributeDefs.unit,
-        defSort: t.categoryAttributeDefs.sortOrder,
-        valueSlug: t.attributeValues.slug,
-        valueLabel: t.attributeValues.value,
-        valueSort: t.attributeValues.sortOrder,
-      })
-      .from(t.productAttributeValues)
-      .innerJoin(t.attributeValues, eq(t.attributeValues.id, t.productAttributeValues.valueId))
-      .innerJoin(t.categoryAttributeDefs, eq(t.categoryAttributeDefs.id, t.attributeValues.defId))
-      .where(eq(t.categoryAttributeDefs.categoryId, category.id))
-      .orderBy(asc(t.categoryAttributeDefs.sortOrder), asc(t.attributeValues.sortOrder));
-    const defs = new Map<string, FacetDef>();
-    for (const row of attrRows) {
-      const def = defs.get(row.defSlug) ?? { slug: row.defSlug, name: row.defName, unit: row.defUnit, values: [] };
-      const existing = def.values.find((v) => v.slug === row.valueSlug);
-      if (existing) existing.count += 1;
-      else def.values.push({ slug: row.valueSlug, label: row.valueLabel, count: 1 });
-      defs.set(row.defSlug, def);
-    }
-    return {
-      type: 'category' as const,
-      brands: [...brandCounts.entries()]
-        .map(([value, count]) => ({ value, count }))
-        .sort((a, b) => b.count - a.count),
-      priceRange: catProducts.length === 0 ? null : { min: priceMin, max: priceMax },
-      attributes: [...defs.values()],
-    };
-  }
-  const catRows = await db
-    .select({ id: t.categories.id, slug: t.categories.slug, name: t.categories.name, sortOrder: t.categories.sortOrder })
-    .from(t.categories)
-    .orderBy(asc(t.categories.sortOrder));
-  const productRows = await db.select({ categoryId: t.products.categoryId }).from(t.products);
-  const countMap = new Map<number, number>();
-  for (const row of productRows) countMap.set(row.categoryId, (countMap.get(row.categoryId) ?? 0) + 1);
-  return {
-    type: 'root' as const,
-    categories: catRows.map((cat) => ({
-      slug: cat.slug,
-      name: cat.name,
-      count: countMap.get(cat.id) ?? 0,
-    })),
-  };
-}
+api.get('/categories', async (c) => c.json({ items: await listCategories() }));
 
 api.get('/products', async (c) => {
-  const url = new URL(c.req.url);
-  const categorySlug = url.searchParams.get('category');
-  const brand = url.searchParams.get('brand');
-  const q = url.searchParams.get('q');
-  const min = toInt(url.searchParams.get('min'));
-  const max = toInt(url.searchParams.get('max'));
-  const sort = url.searchParams.get('sort') ?? 'newest';
-  const page = Math.max(1, toInt(url.searchParams.get('page')) ?? 1);
-  const pageSize = Math.min(48, toInt(url.searchParams.get('page_size')) ?? DEFAULT_PAGE_SIZE);
-
-  const attrFilters = new Map<string, string[]>();
-  for (const [key, value] of url.searchParams.entries()) {
-    if (key.startsWith('a_') && value) {
-      const defSlug = key.slice(2);
-      const list = attrFilters.get(defSlug) ?? [];
-      list.push(value);
-      attrFilters.set(defSlug, list);
-    }
-  }
-
-  const category = categorySlug
-    ? ((await db.select().from(t.categories).where(eq(t.categories.slug, categorySlug)))[0] ?? null)
-    : null;
-  if (categorySlug && !category) {
-    return c.json({ items: [], total: 0, page, pageSize, facets: null });
-  }
-
-  const conds: (SQL | undefined)[] = [];
-  if (category) conds.push(eq(t.products.categoryId, category.id));
-  if (brand) conds.push(eq(t.products.brand, brand));
-  if (min !== null) conds.push(gte(t.products.priceRials, min));
-  if (max !== null) conds.push(lte(t.products.priceRials, max));
-  if (q) {
-    const like = '%' + q + '%';
-    conds.push(or(ilike(t.products.name, like), ilike(t.products.description, like)));
-  }
-  for (const [defSlug, valueSlugs] of attrFilters) {
-    conds.push(
-      exists(
-        db
-          .select({ one: t.productAttributeValues.productId })
-          .from(t.productAttributeValues)
-          .innerJoin(t.attributeValues, eq(t.attributeValues.id, t.productAttributeValues.valueId))
-          .innerJoin(t.categoryAttributeDefs, eq(t.categoryAttributeDefs.id, t.attributeValues.defId))
-          .where(
-            and(
-              eq(t.productAttributeValues.productId, t.products.id),
-              eq(t.categoryAttributeDefs.slug, defSlug),
-              inArray(t.attributeValues.slug, valueSlugs),
-            ),
-          ),
-      ),
-    );
-  }
-  const where = conds.length > 0 ? and(...conds) : undefined;
-
-  const total = where ? await db.$count(t.products, where) : await db.$count(t.products);
-  const sortExpr =
-    sort === 'price_asc'
-      ? asc(t.products.priceRials)
-      : sort === 'price_desc'
-        ? desc(t.products.priceRials)
-        : desc(t.products.id);
-
-  const items = await db
-    .select({
-      id: t.products.id,
-      slug: t.products.slug,
-      name: t.products.name,
-      brand: t.products.brand,
-      priceRials: t.products.priceRials,
-      discountRials: t.products.discountRials,
-      isDigital: t.products.isDigital,
-      imageUrl: t.products.imageUrl,
-      categorySlug: t.categories.slug,
-      categoryName: t.categories.name,
-    })
-    .from(t.products)
-    .innerJoin(t.categories, eq(t.categories.id, t.products.categoryId))
-    .where(where)
-    .orderBy(sortExpr)
-    .limit(pageSize)
-    .offset((page - 1) * pageSize);
-
-  const facets = await buildFacets(category);
-  return c.json({ items, total, page, pageSize, facets });
+  const query = paramsToQuery(new URL(c.req.url).searchParams);
+  return c.json(await listProducts(query));
 });
 
 api.get('/products/:slug', async (c) => {
-  const slug = c.req.param('slug');
-  const row = (
-    await db
-      .select({
-        id: t.products.id,
-        slug: t.products.slug,
-        name: t.products.name,
-        description: t.products.description,
-        brand: t.products.brand,
-        priceRials: t.products.priceRials,
-        discountRials: t.products.discountRials,
-        isDigital: t.products.isDigital,
-        imageUrl: t.products.imageUrl,
-        categorySlug: t.categories.slug,
-        categoryName: t.categories.name,
-      })
-      .from(t.products)
-      .innerJoin(t.categories, eq(t.categories.id, t.products.categoryId))
-      .where(eq(t.products.slug, slug))
-      .limit(1)
-  )[0];
-  if (!row) return c.json({ error: 'محصول یافت نشد' }, 404);
-  const attrs = await db
-    .select({
-      defSlug: t.categoryAttributeDefs.slug,
-      defName: t.categoryAttributeDefs.name,
-      defUnit: t.categoryAttributeDefs.unit,
-      valueLabel: t.attributeValues.value,
-    })
-    .from(t.productAttributeValues)
-    .innerJoin(t.attributeValues, eq(t.attributeValues.id, t.productAttributeValues.valueId))
-    .innerJoin(t.categoryAttributeDefs, eq(t.categoryAttributeDefs.id, t.attributeValues.defId))
-    .where(eq(t.productAttributeValues.productId, row.id));
-  const inv = (await db.select().from(t.inventory).where(eq(t.inventory.productId, row.id)))[0];
-  return c.json({ product: row, attributes: attrs, availableQuantity: inv?.quantity ?? 0 });
+  const data = await productBySlug(c.req.param('slug'));
+  if (!data) return c.json({ error: 'محصول یافت نشد' }, 404);
+  return c.json(data);
 });
 
 type OrderItemInput = { productId: number; quantity: number };

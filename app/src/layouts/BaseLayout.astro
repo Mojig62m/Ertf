@@ -1,4 +1,7 @@
 ---
+import CartButton from '../components/CartButton.svelte';
+import '../styles/global.css';
+
 interface Props {
   title: string;
 }
@@ -12,6 +15,16 @@ const { title } = Astro.props;
     <title>{title}</title>
   </head>
   <body>
-    <slot />
+    <header class="site">
+      <a class="brand" href="/">ارتِف</a>
+      <nav>
+        <a href="/catalog">کاتالوگ</a>
+      </nav>
+      <CartButton client:load />
+    </header>
+    <main class="container">
+      <slot />
+    </main>
+    <footer class="site-footer">نمونه فنی مرحله دوم ارتِف — پرداخت شبیه‌سازی‌شده</footer>
   </body>
 </html>

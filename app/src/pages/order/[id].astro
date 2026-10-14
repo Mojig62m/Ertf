@@ -1,0 +1,51 @@
+---
+import { eq } from 'drizzle-orm';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { db } from '../../db/client';
+import * as t from '../../db/schema';
+import { formatRials } from '../../lib/format';
+
+const id = Number(Astro.params.id);
+let order: typeof t.orders.$inferSelect | null = null;
+let items: (typeof t.orderItems.$inferSelect)[] = [];
+if (Number.isSafeInteger(id) && id > 0) {
+  order = (await db.select().from(t.orders).where(eq(t.orders.id, id)))[0] ?? null;
+  if (order) items = await db.select().from(t.orderItems).where(eq(t.orderItems.orderId, order.id));
+}
+---
+<BaseLayout title="سفارش — ارتِف">
+  {order === null ? (
+    <h1>سفارش یافت نشد</h1>
+  ) : (
+    <div>
+      <h1>سفارش {order.id} با موفقیت ثبت شد</h1>
+      <p>وضعیت: پرداخت‌شده (شبیه‌سازی) — شناسه پرداخت: {order.paymentRef}</p>
+      <table class="simple">
+        <thead>
+          <tr>
+            <th>محصول</th>
+            <th>قیمت واحد</th>
+            <th>تعداد</th>
+            <th>جمع</th>
+            <th>کد فعال‌سازی</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr>
+              <td>{item.productName}{item.isDigital ? ' (دیجیتال)' : ''}</td>
+              <td>{formatRials(item.unitPriceRials)}</td>
+              <td>{item.quantity}</td>
+              <td>{formatRials(item.lineTotalRials)}</td>
+              <td>{item.licenseKey ?? '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p>جمع کالاها: {formatRials(order.subtotalRials)}</p>
+      <p>ارسال: {order.shippingRials === 0 ? 'رایگان' : formatRials(order.shippingRials)}</p>
+      <p>مبلغ کل: {formatRials(order.totalRials)}</p>
+      <p class="note">این نمونه فنی است و پرداخت واقعی انجام نشده است.</p>
+    </div>
+  )}
+</BaseLayout>

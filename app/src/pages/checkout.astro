@@ -1,0 +1,9 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import CheckoutForm from '../components/CheckoutForm.svelte';
+---
+<BaseLayout title="تسویه — ارتِف">
+  <h1>تسویه حساب</h1>
+  <p class="note">در این نمونه فنی، پرداخت شبیه‌سازی‌شده است و مبلغی کسر نمی‌شود.</p>
+  <CheckoutForm client:load />
+</BaseLayout>

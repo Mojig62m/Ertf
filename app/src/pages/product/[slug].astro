@@ -1,0 +1,49 @@
+---
+import AddToCart from '../../components/AddToCart.svelte';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { productBySlug } from '../../lib/catalog';
+import { effectivePrice } from '../../lib/money';
+import { formatRials } from '../../lib/format';
+
+const slug = Astro.params.slug ?? '';
+const data = await productBySlug(slug);
+if (!data) return Astro.redirect('/catalog');
+const { product, attributes, availableQuantity } = data;
+const price = effectivePrice(product.priceRials, product.discountRials);
+---
+<BaseLayout title={product.name + ' — ارتِف'}>
+  <article class="product-page">
+    <img src={product.imageUrl} alt={product.name} width="320" height="320" />
+    <div>
+      <h1>{product.name}</h1>
+      <p>
+        {product.brand} — <a href={'/catalog?category=' + product.categorySlug}>{product.categoryName}</a>
+        {product.isDigital && <span class="badge">دیجیتال</span>}
+      </p>
+      <p>{product.description}</p>
+      {product.discountRials > 0 && <p class="price-old">{formatRials(product.priceRials)}</p>}
+      <p class="price">{formatRials(price)}</p>
+      <ul>
+        {attributes.map((a) => (
+          <li>{a.defName}: {a.valueLabel}{a.defUnit ? ' ' + a.defUnit : ''}</li>
+        ))}
+      </ul>
+      <p>{availableQuantity > 0 ? 'موجودی: ' + availableQuantity + ' عدد' : 'ناموجود'}</p>
+      {availableQuantity > 0 && (
+        <AddToCart
+          client:load
+          productId={product.id}
+          name={product.name}
+          slug={product.slug}
+          unitPriceRials={price}
+          isDigital={product.isDigital}
+        />
+      )}
+      {product.isDigital && (
+        <p class="note">
+          این محصول دیجیتال است؛ پس از ثبت سفارش، کد فعال‌سازی نمایش داده می‌شود. انصراف تا پیش از فعال‌سازی لایسنس امکان‌پذیر است.
+        </p>
+      )}
+    </div>
+  </article>
+</BaseLayout>
