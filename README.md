@@ -9,17 +9,17 @@
 | مسیر | محتوا |
 |---|---|
 | docs/00-charter.md | سند راهبردی پروژه (منبع حقیقت راهبردی) |
-| docs/01-governance/agent-ceo-operating-model.md | مدل بهره‌برداری: ایجنت به‌عنوان مدیر ارشد اجرایی پروژه |
+| docs/01-governance/agent-ceo-operating-model.md | سیستم عامل نخبگی ایجنت: مدل‌های ذهنی، تکنیک‌ها، چرخه‌ها و پروتکل اثبات go-live |
 | docs/01-governance/decision-records/ | سوابق تصمیم معماری (ADR) |
-| docs/01-governance/risk-register.md | ثبت ریسک‌ها (مبتنی بر پیش‌مرگ ذهنی) |
+| docs/01-governance/risk-register.md | ثبت ریسک‌ها (مبتنی بر پیش‌مرگ ذهنی و دانش به‌روز) |
 | docs/02-product/prd.md | سند الزامات محصول (اسکلت اولیه) |
 | docs/02-product/compliance-baseline-eu-se.md | خط پایه انطباق حقوقی: اتحادیه اروپا و سوئد |
 | docs/03-engineering/architecture-baseline.md | خط پایه معماری، ماژول‌ها و ناورداهای سیستمی |
 | docs/03-engineering/security-baseline-asvs.md | خط پایه امنیت بر پایه OWASP ASVS 5.0.0 |
 | docs/04-delivery/delivery-plan.md | برنامه اجرا تا Go-Live با تعریف آمادگی و انجام |
 | docs/04-delivery/acceptance-golive.md | معیارهای پذیرش و چک‌لیست Go/No-Go |
-| docs/04-delivery/metrics-and-okr.md | شاخص‌ها، درخت KPI و OKR |
-| docs/05-ai/ai-guardrails.md | خطوط قرمز و مجوزهای استفاده از هوش مصنوعی |
+| docs/04-delivery/metrics-and-okr.md | شاخص‌ها، درخت KPI، OKR و سنجه‌های DORA |
+| docs/05-ai/ai-guardrails.md | خطوط قرمز هوش مصنوعی بر پایه OWASP LLM 2025 و ماده ۵۰ قانون هوش مصنوعی |
 | docs/06-knowledge/methods-library.md | کتابخانه روش‌های اثبات‌شده و کمتر شناخته‌شده |
 
 ## اصول حاکم بر مخزن
@@ -33,4 +33,5 @@
 ## وضعیت
 
 - فاز: مرحله صفر — تثبیت حاکمیت (تکمیل‌شده)
+- سیستم عامل ایجنت: نسخه ۲ — نخبگی اجرایی (نصب‌شده)
 - گام بعدی: مرحله اول — تثبیت نیازمندی‌ها (پاسخ به پرسش‌های باز در docs/02-product/prd.md)
