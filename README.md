@@ -17,6 +17,7 @@
 | docs/03-engineering/security-baseline-asvs.md | خط پایه امنیت بر پایه OWASP ASVS 5.0.0 |
 | docs/04-delivery/delivery-plan.md | برنامه اجرا تا Go-Live با تعریف آمادگی و انجام |
 | docs/04-delivery/prototype-plan-phase2.md | برنامه مصوب نمونه فنی مرحله دوم (مسیر طلایی، استک، پروتکل سنجش) |
+| docs/04-delivery/prototype-review-phase2.md | گزارش بازبینی ایستای نمونه (dry run پیش از اجرای مالک) |
 | docs/04-delivery/cwv-measurement-report.md | قالب رسمی سنجش Core Web Vitals و جدول مقایسه استک (قدم ۶) |
 | docs/04-delivery/acceptance-golive.md | معیارهای پذیرش و چک‌لیست Go/No-Go |
 | docs/04-delivery/metrics-and-okr.md | شاخص‌ها، درخت KPI، OKR و سنجه‌های DORA |
@@ -34,7 +35,7 @@
 
 ## وضعیت
 
-- فاز: مرحله دوم — نمونه فنی محدود (قدم ۱ تا ۵ انجام شد؛ در انتظار سنجش مالک)
+- فاز: مرحله دوم — نمونه فنی محدود (قدم ۱ تا ۵ انجام شد؛ بازبینی ایستای کامل نیز انجام و بدون نقص مسدودکننده ثبت شد)
 - پیشرفت: اسکلت، پایگاه داده و seed، API، صفحات و جزایر، سبد و تسویه شبیه‌سازی‌شده، لایه پرداخت مستقل از تأمین‌کننده (شبیه‌سازی فعال، زرین‌پال مرحله سوم)
 - باقی‌مانده: قدم ۶ سنجش Core Web Vitals توسط مالک (قالب: docs/04-delivery/cwv-measurement-report.md)، قدم ۷ ADR-0005 و Go/No-Go مرحله سوم
 - سیستم عامل ایجنت: نسخه ۲٫۲ — نخبگی اجرایی با پایه شواهد علمی (نصب‌شده)
