@@ -85,9 +85,16 @@ function withParam(name: string, value: string): string {
       </div>
       <p>{result.total} محصول</p>
       <div class="grid">
-        {result.items.map((p) => (
+        {result.items.map((p, i) => (
           <a class="card" href={'/product/' + p.slug}>
-            <img src={p.imageUrl} alt={p.name} loading="lazy" width="240" height="240" />
+            <img
+              src={p.imageUrl}
+              alt={p.name}
+              loading={i === 0 ? 'eager' : 'lazy'}
+              fetchpriority={i === 0 ? 'high' : 'auto'}
+              width="240"
+              height="240"
+            />
             <strong>{p.name}</strong>
             <span>{p.brand}</span>
             {p.discountRials > 0 && <span class="price-old">{formatRials(p.priceRials)}</span>}
