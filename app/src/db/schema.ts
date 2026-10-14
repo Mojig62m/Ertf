@@ -1,4 +1,4 @@
-import { bigint, boolean, integer, pgTable, primaryKey, serial, text, timestamp, unique } from 'drizzle-orm/pg-core';
+import { bigint, boolean, index, integer, pgTable, primaryKey, serial, text, timestamp, unique } from 'drizzle-orm/pg-core';
 
 // دسته‌ها و تعریف ویژگی‌های متغیر هر دسته (ناوردای کاتالوگ چنددسته‌ای، R16)
 export const categories = pgTable('categories', {
@@ -37,12 +37,12 @@ export const products = pgTable('products', {
   isDigital: boolean('is_digital').notNull().default(false),
   imageUrl: text('image_url').notNull().default('/images/placeholder.svg'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [index('products_category_idx').on(t.categoryId), index('products_brand_idx').on(t.brand)]);
 
 export const productAttributeValues = pgTable('product_attribute_values', {
   productId: integer('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
   valueId: integer('value_id').notNull().references(() => attributeValues.id, { onDelete: 'cascade' }),
-}, (t) => [primaryKey({ columns: [t.productId, t.valueId] })]);
+}, (t) => [primaryKey({ columns: [t.productId, t.valueId] }), index('pav_value_idx').on(t.valueId)]);
 
 export const inventory = pgTable('inventory', {
   productId: integer('product_id').primaryKey().references(() => products.id, { onDelete: 'cascade' }),
@@ -75,4 +75,4 @@ export const orderItems = pgTable('order_items', {
   quantity: integer('quantity').notNull(),
   lineTotalRials: bigint('line_total_rials', { mode: 'number' }).notNull(),
   licenseKey: text('license_key'),
-});
+}, (t) => [index('order_items_order_idx').on(t.orderId), index('order_items_product_idx').on(t.productId)]);
