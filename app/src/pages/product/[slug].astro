@@ -1,5 +1,6 @@
 ---
 import AddToCart from '../../components/AddToCart.svelte';
+import StockIsland from '../../components/StockIsland.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { productBySlug } from '../../lib/catalog';
 import { effectivePrice } from '../../lib/money';
@@ -13,7 +14,7 @@ const price = effectivePrice(product.priceRials, product.discountRials);
 ---
 <BaseLayout title={product.name + ' — ارتِف'}>
   <article class="product-page">
-    <img src={product.imageUrl} alt={product.name} width="320" height="320" />
+    <img src={product.imageUrl} alt={product.name} width="320" height="320" fetchpriority="high" />
     <div>
       <h1>{product.name}</h1>
       <p>
@@ -22,13 +23,15 @@ const price = effectivePrice(product.priceRials, product.discountRials);
       </p>
       <p>{product.description}</p>
       {product.discountRials > 0 && <p class="price-old">{formatRials(product.priceRials)}</p>}
-      <p class="price">{formatRials(price)}</p>
+      {/* قطعهٔ تأخیری نسل‌جدید: قیمت و موجودی لحظه‌ای پس از پوستهٔ استاتیک استریم می‌شود */}
+      <StockIsland server:defer productId={product.id} priceRials={price}>
+        <p slot="fallback" class="price">{formatRials(price)}</p>
+      </StockIsland>
       <ul>
         {attributes.map((a) => (
           <li>{a.defName}: {a.valueLabel}{a.defUnit ? ' ' + a.defUnit : ''}</li>
         ))}
       </ul>
-      <p>{availableQuantity > 0 ? 'موجودی: ' + availableQuantity + ' عدد' : 'ناموجود'}</p>
       {availableQuantity > 0 && (
         <AddToCart
           client:load
