@@ -1,4 +1,4 @@
-import { client, db } from './client';
+import { db, closeDb } from './client';
 import * as t from './schema';
 
 // مولد شبه‌تصادفی قطعی برای تکرارپذیری seed
@@ -189,11 +189,11 @@ async function main() {
 
 main()
   .then(async () => {
-    await client.end();
+    await closeDb();
     process.exit(0);
   })
   .catch(async (err) => {
     console.error(err);
-    await client.end();
+    await closeDb();
     process.exit(1);
   });
