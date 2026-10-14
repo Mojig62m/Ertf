@@ -1,3 +1,12 @@
+# ارتِف — ترکیب محلی و پیش‌تولید
+# db → migrate (یک‌بار) → app
+#
+# استفاده:
+#   docker compose up -d --build
+#   مرورگر: http://localhost:4321
+#
+# در تولید، مقادیر POSTGRES_PASSWORD و DATABASE_URL باید از سرویس مدیریت اسرار بیایند.
+
 services:
   db:
     image: postgres:16-alpine
@@ -14,6 +23,39 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  # مهاجرت نسخه‌دار — یک‌بار اجرا و خارج می‌شود (رفع B5)
+  migrate:
+    build:
+      context: .
+      target: migrator
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/ertf
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runtime
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/ertf
+      NODE_ENV: production
+      PORT: 4321
+      HOST: 0.0.0.0
+      LOG_LEVEL: info
+      APP_VERSION: local
+    ports:
+      - "4321:4321"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
 
 volumes:
   ertf_pgdata:
