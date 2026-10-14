@@ -1,7 +1,7 @@
-import { randomBytes } from 'node:crypto';
-
 // انتزاع مستقل از تأمین‌کننده پرداخت — الزام ADR-0003
 // امروز: شبیه‌سازی؛ مرحله سوم: زرین‌پال؛ آینده: افزودن تأمین‌کننده دوم فقط با یک کلاس جدید
+//
+// درز قابلیت جابه‌جایی رانتایم: به‌جای node:crypto از Web Crypto استاندارد استفاده می‌شود.
 
 export type PaymentInitiation = {
   paymentRef: string;
@@ -14,10 +14,16 @@ export interface PaymentProvider {
   settle(orderId: number): PaymentInitiation;
 }
 
+function randomHex(bytes: number): string {
+  const buf = new Uint8Array(bytes);
+  globalThis.crypto.getRandomValues(buf);
+  return Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 export class SimulatedProvider implements PaymentProvider {
   readonly id = 'simulated';
   settle(orderId: number): PaymentInitiation {
-    const ref = 'SIM-' + orderId + '-' + randomBytes(4).toString('hex').toUpperCase();
+    const ref = 'SIM-' + orderId + '-' + randomHex(4).toUpperCase();
     return { paymentRef: ref, status: 'paid_simulated' };
   }
 }
