@@ -25,8 +25,14 @@ describe('محاسبات ریالی (R14)', () => {
   });
 
   test('ارسال رایگان دقیقاً از سقف خرید', () => {
-    expect(shippingFor(FREE_SHIPPING_THRESHOLD_RIALS - 1)).toBe(SHIPPING_FLAT_RIALS);
-    expect(shippingFor(FREE_SHIPPING_THRESHOLD_RIALS)).toBe(0);
+    // سقف ارسال رایگان می‌تواند null باشد (تصمیم باز مالک)؛ در آن حالت این آزمون معنادار نیست.
+    if (FREE_SHIPPING_THRESHOLD_RIALS === null) {
+      expect(shippingFor(999_999_999)).toBe(SHIPPING_FLAT_RIALS);
+      return;
+    }
+    const threshold: number = FREE_SHIPPING_THRESHOLD_RIALS;
+    expect(shippingFor(threshold - 1)).toBe(SHIPPING_FLAT_RIALS);
+    expect(shippingFor(threshold)).toBe(0);
     expect(shippingFor(0)).toBe(SHIPPING_FLAT_RIALS);
   });
 
