@@ -1,0 +1,29 @@
+---
+// Server Island — قطعهٔ استریم‌شده و تأخیری (نسل‌جدید)
+//
+// چرا: پوستهٔ صفحه فوراً و به‌صورت استاتیک رنگ می‌شود و دادهٔ پرنوسان
+// (موجودی لحظه‌ای) پس از آن استریم می‌شود. این الگو TTFB و LCP را بهتر می‌کند
+// و اجازه می‌دهد صفحه در CDN/لبه کش شود بدون قربانی‌کردن دادهٔ زنده.
+//
+// مصرف: <StockIsland server:defer productId={id} priceRials={price}> ...fallback... </StockIsland>
+
+import { eq } from 'drizzle-orm';
+import { db } from '../db/client';
+import * as t from '../db/schema';
+import { formatRials } from '../lib/format';
+
+interface Props {
+  productId: number;
+  priceRials: number;
+}
+
+const { productId, priceRials } = Astro.props;
+
+const inv = (await db.select().from(t.inventory).where(eq(t.inventory.productId, productId)))[0];
+const quantity = inv?.quantity ?? 0;
+---
+
+<p class="price">{formatRials(priceRials)}</p>
+<p class:list={['stock-badge', quantity > 0 ? 'stock-in' : 'stock-out']}>
+  {quantity > 0 ? 'موجود — ' + quantity + ' عدد' : 'ناموجود'}
+</p>
