@@ -5,6 +5,7 @@ import { db } from '../db/client';
 import * as t from '../db/schema';
 import { effectivePrice, lineTotal, shippingFor, subtotalOf } from '../lib/money';
 import { listCategories, paramsToQuery, listProducts, productBySlug } from '../lib/catalog';
+import { getPaymentProvider } from '../lib/payment';
 
 export const api = new Hono().basePath('/api');
 
@@ -130,12 +131,18 @@ api.post('/orders', async (c) => {
           subtotalRials: subtotal,
           shippingRials: shipping,
           totalRials: total,
-          status: 'paid_simulated',
+          status: 'pending',
           paymentRef: 'PENDING',
         })
         .returning();
-      const paymentRef = 'SIM-' + order.id + '-' + randomBytes(4).toString('hex').toUpperCase();
-      const [updated] = await tx.update(t.orders).set({ paymentRef }).where(eq(t.orders.id, order.id)).returning();
+
+      // نقطیه جابه‌جایی شبیه‌سازی با درگاه واقعی — تنها محل تغییر، همین فراخوانی است
+      const payment = getPaymentProvider().settle(order.id);
+      const [updated] = await tx
+        .update(t.orders)
+        .set({ paymentRef: payment.paymentRef, status: payment.status })
+        .where(eq(t.orders.id, order.id))
+        .returning();
 
       const itemRows = await tx
         .insert(t.orderItems)

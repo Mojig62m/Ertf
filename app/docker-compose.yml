@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ertf
+    ports:
+      - "5432:5432"
+    volumes:
+      - ertf_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ertf"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  ertf_pgdata:
