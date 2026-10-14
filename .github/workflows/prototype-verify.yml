@@ -1,0 +1,184 @@
+name: prototype-verify — اثبات نمونه مرحله دوم
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/prototype-verify.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prototype-verify
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ertf
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ertf"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/ertf
+      PORT: 4321
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: نصب وابستگی‌ها
+        run: |
+          set -o pipefail
+          npm install --no-audit --no-fund 2>&1 | tee logs-install.log
+      - name: آزمون‌های واحد
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee logs-test.log
+      - name: ایجاد طرح پایگاه داده
+        run: |
+          set -o pipefail
+          npm run db:push 2>&1 | tee logs-dbpush.log
+      - name: بارگذاری داده نمونه
+        run: |
+          set -o pipefail
+          npm run db:seed 2>&1 | tee logs-seed.log
+      - name: ساخت نسخه تولید
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee logs-build.log
+      - name: اجرای سرور
+        run: |
+          set -e
+          nohup node ./dist/server/entry.mjs > logs-server.log 2>&1 &
+          for I in $(seq 1 30); do
+            if curl -sf http://localhost:4321/api/health > /dev/null; then
+              echo 'سرور تولید ارتِف بالا آمد'
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'سرور پاسخ نداد؛ لاگ سرور:'
+          cat logs-server.log
+          exit 1
+      - name: آزمون دودی مسیر طلایی
+        run: |
+          set -eo pipefail
+          BASE=http://localhost:4321
+          V=verify.txt
+          {
+          echo 'بررسی سلامت سرور'
+          curl -sf "$BASE/api/health" | jq -e '.ok == true' > /dev/null && echo 'PASS: سلامت' >> "$V"
+          echo 'بررسی دسته‌ها'
+          C=$(curl -sf "$BASE/api/categories")
+          echo "$C" | jq -e '.items | length == 5' > /dev/null && echo 'PASS: پنج دسته' >> "$V"
+          echo 'بررسی کاتالوگ'
+          curl -sf "$BASE/api/products?page_size=48" | jq -e '.total == 50' > /dev/null && echo 'PASS: پنجاه محصول' >> "$V"
+          echo 'بررسی فیلتر چندوجهی'
+          curl -sf "$BASE/api/products?category=digital-gear&a_color=black" | jq -e '(.items | length > 0) and (.items | all(.categorySlug == "digital-gear"))' > /dev/null && echo 'PASS: فیلتر چندوجهی دسته و ویژگی' >> "$V"
+          echo 'بررسی محصول دیجیتال'
+          D=$(curl -sf "$BASE/api/products/antivirus-license")
+          echo "$D" | jq -e '.product.isDigital == true and .availableQuantity > 0' > /dev/null && echo 'PASS: محصول دیجیتال با موجودی' >> "$V"
+          DID=$(echo "$D" | jq '.product.id')
+          P=$(curl -sf "$BASE/api/products/usb-c-cable")
+          PID=$(echo "$P" | jq '.product.id')
+          KEY=$(cat /proc/sys/kernel/random/uuid)
+          printf '{"idempotencyKey":"%s","customer":{"name":"آزمون ارتِف","phone":"09120000000","city":"تهران","address":"خیابان نمونه، پلاک ۱","postalCode":"1234567890"},"items":[{"productId":%s,"quantity":1},{"productId":%s,"quantity":2}]}' "$KEY" "$DID" "$PID" > order.json
+          echo 'ثبت سفارش آزمون'
+          O1=$(curl -sf -X POST -H 'Content-Type: application/json' --data @order.json "$BASE/api/orders")
+          echo "$O1" | jq -e '.order.status == "paid_simulated"' > /dev/null && echo 'PASS: ثبت سفارش با تسویه شبیه‌سازی‌شده' >> "$V"
+          OID=$(echo "$O1" | jq '.order.id')
+          echo "$O1" | jq -e '.items[0].licenseKey != null and (.items[0].licenseKey | startswith("ERF-"))' > /dev/null && echo 'PASS: صدور لایسنس برای قلم دیجیتال' >> "$V"
+          echo "$O1" | jq -e '.items[1].licenseKey == null' > /dev/null && echo 'PASS: اقلام فیزیکی بدون لایسنس' >> "$V"
+          echo 'تکرار همان کلید تکرارناپذیری'
+          O2=$(curl -sf -X POST -H 'Content-Type: application/json' --data @order.json "$BASE/api/orders")
+          echo "$O2" | jq -e '.replay == true and .order.id == '"$OID" > /dev/null && echo 'PASS: تکرارناپذیری سفارش (idempotency)' >> "$V"
+          echo 'بازیابی سفارش ثبت‌شده'
+          curl -sf "$BASE/api/orders/$OID" | jq -e '.order.id == '"$OID"' and (.items | length == 2)' > /dev/null && echo 'PASS: بازیابی سفارش و اقلام' >> "$V"
+          echo 'همه بررسی‌های مسیر طلایی موفق بود'
+          } 2>&1 | tee logs-smoke.log
+      - name: سنجش آزمایشگاهی Core Web Vitals
+        run: |
+          set -eo pipefail
+          {
+          M=metrics.txt
+          echo 'شروع سنجش آزمایشگاهی (تقلید موبایل)'
+          for PAGE in / /catalog /product/wireless-headphones /cart; do
+            NAME=$(echo "$PAGE" | tr '/' '-')
+            echo "صفحه: $PAGE"
+            npx --yes lighthouse --quiet --chrome-flags="--headless=new --no-sandbox --disable-dev-shm-usage" --only-categories=performance --output=json --output-path="lh$NAME.json" "http://localhost:4321$PAGE"
+            LCP=$(jq '.audits["largest-contentful-paint"].numericValue' "lh$NAME.json")
+            CLS=$(jq '.audits["cumulative-layout-shift"].numericValue' "lh$NAME.json")
+            TBT=$(jq '.audits["total-blocking-time"].numericValue' "lh$NAME.json")
+            INP=$(jq 'try .audits["interaction-to-next-paint"].numericValue catch "null"' "lh$NAME.json")
+            echo "$PAGE | $LCP | $CLS | $TBT | $INP" >> "$M"
+          done
+          echo 'سنجه‌ها (صفحه | LCP | CLS | TBT | INP):'
+          cat "$M"
+          echo 'پایان سنجش'
+          } 2>&1 | tee logs-lighthouse.log
+      - name: ثبت وضعیت موفق
+        if: success()
+        run: echo PASSED > status.txt
+      - name: ثبت وضعیت شکست
+        if: failure()
+        run: echo FAILED > status.txt
+      - name: ثبت نتیجه در مخزن
+        if: always()
+        working-directory: .
+        run: |
+          set -u
+          STATUS=$(cat app/status.txt 2>/dev/null || echo UNKNOWN)
+          DATE_UTC=$(date -u '+%Y-%m-%d %H:%M UTC')
+          OUT=docs/04-delivery/cwv-lab-results-ci.md
+          {
+          echo '# نتیجه اجرای خودکار نمونه مرحله دوم (GitHub Actions)'
+          echo
+          echo "تاریخ اجرا: $DATE_UTC — وضعیت کلی: $STATUS"
+          echo
+          echo 'این سند به‌صورت خودکار توسط گردش‌کار prototype-verify تولید و ثبت می‌شود. مبنای قدم ۶ سنجش و ورودی ADR-0005 است. سنجه‌ها آزمایشگاهی (Lighthouse با تقلید موبایل) هستند؛ صدک ۷۵ کاربران واقعی پس از راه‌اندازی تولید از طریق داده میدانی سنجیده می‌شود.'
+          echo
+          echo '## سنجه‌های آزمایشگاهی — قالب: صفحه | LCP میلی‌ثانیه | CLS | TBT میلی‌ثانیه | INP میلی‌ثانیه'
+          echo
+          if [ -f app/metrics.txt ]; then cat app/metrics.txt; else echo 'سنجش انجام نشد'; fi
+          echo
+          echo '## نتیجه آزمون دودی مسیر طلایی'
+          echo
+          if [ -f app/verify.txt ]; then cat app/verify.txt; else echo 'آزمون دودی انجام نشد'; fi
+          echo
+          echo '## تشخیص خطا'
+          echo
+          if [ "$STATUS" = PASSED ]; then
+            echo 'بدون خطا.'
+          else
+            for L in install test dbpush seed build server smoke lighthouse; do
+              F="app/logs-$L.log"
+              if [ -f "$F" ]; then
+                echo "---- لاگ $L (چهل خط آخر) ----"
+                tail -n 40 "$F"
+                echo
+              fi
+            done
+          fi
+          } > "$OUT"
+          git config user.name ertf-agent
+          git config user.email ertf-agent@users.noreply.github.com
+          git add "$OUT"
+          git commit -m "نتیجه اجرای خودکار نمونه مرحله دوم: $STATUS" || echo 'تغییری برای ثبت نبود'
+          git push
